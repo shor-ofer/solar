@@ -1,0 +1,150 @@
+<!doctype html><html lang="he"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>מערכת השמש מכל זווית</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600&display=swap">
+<style>
+/* Layout: full-screen star chart canvas, control strip pinned to the top */
+:root {
+  --bg: #05070f; --ink: #e6e9f5; --muted: #8a90b0; --chip: #141a2e; --chip-on: #f2b83b;
+  --font: "Rubik", "Arial Hebrew", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); overflow: hidden; }
+.bar {
+  position: fixed; inset: 0 0 auto; z-index: 2; display: flex; flex-direction: column; gap: 8px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: linear-gradient(var(--bg) 70%, transparent);
+}
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; direction: rtl; }
+button {
+  font: 600 14px var(--font); color: var(--ink); background: var(--chip); border: 1px solid #262f4f;
+  border-radius: 999px; padding: 6px 12px; cursor: pointer; display: flex; gap: 6px; align-items: center;
+}
+button .dot { width: 10px; height: 10px; border-radius: 50%; }
+button[aria-pressed="true"] { background: var(--chip-on); color: #1a1205; border-color: var(--chip-on); }
+button:focus-visible { outline: 2px solid var(--chip-on); outline-offset: 2px; }
+.info { font-size: 13px; color: var(--muted); direction: rtl; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+label { display: flex; gap: 6px; align-items: center; }
+input[type=range] { width: 110px; accent-color: var(--chip-on); }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+</style>
+</head><body>
+
+<canvas id="sky"></canvas>
+<div class="bar">
+  <div class="row" id="picks"></div>
+  <div class="info">
+    <span id="label">מבט מהשמש</span>
+    <span id="date" style="font-variant-numeric: tabular-nums"></span>
+    <label for="speed">מהירות <input id="speed" type="range" min="1" max="60" value="12"></label>
+    <button id="pause" type="button">השהה</button>
+  </div>
+</div>
+
+<script>
+const bodies = [
+  { he: "השמש",  a: 0,    T: 1,     r: 9,   c: "#ffcc4d" },
+  { he: "כוכב חמה", a: 0.39, T: 87.97, r: 3,   c: "#b9b2a6" },
+  { he: "נוגה",  a: 0.72, T: 224.7, r: 4.5, c: "#f1d9a0" },
+  { he: "כדור הארץ", a: 1.0, T: 365.25, r: 5, c: "#5fa8ff" },
+  { he: "מאדים", a: 1.52, T: 687,   r: 4,   c: "#ff6b4a" },
+  { he: "צדק",   a: 5.2,  T: 4333,  r: 8,   c: "#e0b48a" },
+  { he: "שבתאי", a: 9.54, T: 10759, r: 7,   c: "#e8d48f" }
+];
+const start = [0, 0.3, 1.9, 0, 3.6, 0.6, 4.4];
+
+const cv = document.getElementById("sky"), ctx = cv.getContext("2d");
+let W, H, dpr;
+function size() {
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener("resize", size); size();
+
+let center = 0, day = 0, paused = false;
+let trails = bodies.map(() => []);
+const MAXTRAIL = 1400;
+
+const picks = document.getElementById("picks");
+bodies.forEach((b, i) => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.innerHTML = `<span class="dot" style="background:${b.c}"></span>${b.he}`;
+  btn.setAttribute("aria-pressed", i === 0);
+  btn.onclick = () => {
+    center = i; trails = bodies.map(() => []);
+    [...picks.children].forEach((x, j) => x.setAttribute("aria-pressed", j === i));
+    document.getElementById("label").textContent = "מבט מ" + (i === 0 ? "השמש" : b.he);
+  };
+  picks.appendChild(btn);
+});
+const pauseBtn = document.getElementById("pause");
+pauseBtn.onclick = () => { paused = !paused; pauseBtn.textContent = paused ? "המשך" : "השהה"; };
+const speed = document.getElementById("speed");
+
+// display radius: square-root squeeze so Mercury and Saturn both fit
+function disp(a) { return Math.sqrt(a); }
+function pos(i, t) {
+  const b = bodies[i];
+  if (b.a === 0) return [0, 0];
+  const th = start[i] + 2 * Math.PI * t / b.T;
+  const R = disp(b.a);
+  return [R * Math.cos(th), -R * Math.sin(th)];
+}
+
+const stars = Array.from({ length: 220 }, () => [Math.random(), Math.random(), Math.random() * 1.2 + 0.2]);
+
+function frame() {
+  if (!paused) day += speed.value * 0.5;
+  const P = bodies.map((_, i) => pos(i, day));
+  const [cx, cy] = P[center];
+  const rel = P.map(([x, y]) => [x - cx, y - cy]);
+
+  // scale so the farthest relative body fits the screen
+  const top = 90, avail = Math.min(W, H - top) / 2 - 24;
+  const maxR = disp(9.54) * (center === 0 ? 1 : 2);
+  const s = avail / maxR;
+  const ox = W / 2, oy = top + (H - top) / 2;
+
+  if (!paused) rel.forEach((p, i) => { const t = trails[i]; t.push(p); if (t.length > MAXTRAIL) t.shift(); });
+
+  ctx.fillStyle = "#05070f"; ctx.fillRect(0, 0, W, H);
+  for (const [x, y, r] of stars) { ctx.fillStyle = "rgba(200,210,255,.5)"; ctx.fillRect(x * W, y * H, r, r); }
+
+  trails.forEach((t, i) => {
+    if (i === center || t.length < 2) return;
+    ctx.strokeStyle = bodies[i].c; ctx.lineWidth = 1.4;
+    for (let k = 1; k < t.length; k++) {
+      ctx.globalAlpha = (k / t.length) * 0.75;
+      ctx.beginPath();
+      ctx.moveTo(ox + t[k - 1][0] * s, oy + t[k - 1][1] * s);
+      ctx.lineTo(ox + t[k][0] * s, oy + t[k][1] * s);
+      ctx.stroke();
+    }
+  });
+  ctx.globalAlpha = 1;
+
+  rel.forEach(([x, y], i) => {
+    const b = bodies[i], px = ox + x * s, py = oy + y * s;
+    if (i === 0) {
+      const g = ctx.createRadialGradient(px, py, 0, px, py, b.r * 3);
+      g.addColorStop(0, "rgba(255,204,77,.55)"); g.addColorStop(1, "rgba(255,204,77,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, b.r * 3, 0, 7); ctx.fill();
+    }
+    if (i === 6) { ctx.strokeStyle = "#c9b878"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(px, py, b.r * 1.9, b.r * 0.7, -0.4, 0, 7); ctx.stroke(); }
+    ctx.fillStyle = b.c; ctx.beginPath(); ctx.arc(px, py, b.r, 0, 7); ctx.fill();
+    if (i === center) { ctx.strokeStyle = "#f2b83b"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, b.r + 5, 0, 7); ctx.stroke(); }
+    ctx.fillStyle = "#c8cde6"; ctx.font = "12px Rubik, sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(b.he, px, py + b.r + 14);
+  });
+
+  document.getElementById("date").textContent = "שנה " + (day / 365.25).toFixed(1);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body></html>
