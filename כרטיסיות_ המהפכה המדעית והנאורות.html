@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>כרטיסיות: המהפכה המדעית והנאורות</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f2ea; --ink:#1f2430; --muted:#6b6f7a; --card:#fffdf8; --line:#e4ddcf;
+    --sci:#2f6f8f; --sci-soft:#e3eff4; --enl:#b5651d; --enl-soft:#f7ebde;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#15171c; --ink:#ecebe6; --muted:#9a9ca4; --card:#1f222a; --line:#2e323c;
+      --sci:#6fb3d2; --sci-soft:#1c2a33; --enl:#e39a5a; --enl-soft:#2e2318;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Heebo',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 32px}
+  header{width:100%;max-width:560px;text-align:center;margin-bottom:14px}
+  h1{font-size:1.35rem;font-weight:800;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:.9rem;margin:0}
+  .filters{display:flex;gap:8px;justify-content:center;margin:14px 0 4px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;
+    padding:7px 14px;font:inherit;font-size:.88rem;cursor:pointer}
+  .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .progress{width:100%;max-width:560px;height:6px;background:var(--line);border-radius:6px;overflow:hidden;margin:10px 0 6px}
+  .bar{height:100%;width:0;background:var(--ink);transition:width .3s}
+  .count{color:var(--muted);font-size:.85rem;margin-bottom:12px}
+  .scene{width:100%;max-width:560px;height:360px;perspective:1400px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .card{position:relative;width:100%;height:100%;transition:transform .55s cubic-bezier(.3,.7,.3,1);transform-style:preserve-3d}
+  .card.flipped{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:20px;
+    background:var(--card);border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.08);
+    padding:26px 24px;display:flex;flex-direction:column}
+  .back{transform:rotateY(180deg)}
+  .tag{align-self:flex-start;font-size:.78rem;font-weight:700;padding:4px 10px;border-radius:999px}
+  .sci .tag{background:var(--sci-soft);color:var(--sci)}
+  .enl .tag{background:var(--enl-soft);color:var(--enl)}
+  .sci .face{border-top:5px solid var(--sci)}
+  .enl .face{border-top:5px solid var(--enl)}
+  .q{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:1.45rem;font-weight:700;line-height:1.45}
+  .a{flex:1;display:flex;font-size:1.12rem;line-height:1.75;overflow:auto;padding:10px 0}
+  .a > div{margin:auto 0;width:100%;text-align:right}
+  .a b{font-weight:700}
+  .hint{text-align:center;color:var(--muted);font-size:.8rem}
+  .controls{display:flex;gap:10px;margin-top:18px;width:100%;max-width:560px}
+  .btn{flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;
+    padding:13px 10px;font:inherit;font-weight:600;font-size:.95rem;cursor:pointer}
+  .btn.main{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .btn:disabled{opacity:.4;cursor:default}
+  .extra{display:flex;gap:10px;margin-top:10px;width:100%;max-width:560px}
+  .extra .btn{font-weight:500;font-size:.88rem;padding:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>המהפכה המדעית והנאורות</h1>
+  <p class="sub">הקישו על הכרטיס כדי לראות את התשובה</p>
+  <div class="filters">
+    <button class="chip on" data-f="all">הכול</button>
+    <button class="chip" data-f="sci">🔬 המהפכה המדעית</button>
+    <button class="chip" data-f="enl">💡 הנאורות והמדינה</button>
+  </div>
+</header>
+
+<div class="progress"><div class="bar" id="bar"></div></div>
+<div class="count" id="count"></div>
+
+<div class="scene" id="scene">
+  <div class="card" id="card">
+    <div class="face front">
+      <span class="tag" id="tagF"></span>
+      <div class="q" id="q"></div>
+      <div class="hint">הקישו להפוך ↺</div>
+    </div>
+    <div class="face back">
+      <span class="tag" id="tagB"></span>
+      <div class="a" id="a"></div>
+      <div class="hint">הקישו לחזור לשאלה</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn" id="prev">→ הקודם</button>
+  <button class="btn main" id="flip">הצג תשובה</button>
+  <button class="btn" id="next">הבא ←</button>
+</div>
+<div class="extra">
+  <button class="btn" id="shuffle">🔀 ערבוב</button>
+  <button class="btn" id="restart">↺ מההתחלה</button>
+</div>
+
+<script>
+const CARDS = [
+  {t:"sci", q:"מהי המהפכה המדעית?", a:"שינוי בדרך שבה בני האדם הבינו את העולם ואת חוקי הטבע — מעבר מהסתמכות על <b>כתבי הקודש והמסורת</b> אל <b>תצפיות, ניסויים, מדידות ומתמטיקה</b>."},
+  {t:"sci", q:"מה ההבדל בין התיאוריה הגיאוצנטרית להליוצנטרית?", a:"<b>גיאוצנטרית:</b> כדור הארץ נמצא במרכז היקום.<br><b>הליוצנטרית (קופרניקוס):</b> השמש נמצאת במרכז מערכת השמש."},
+  {t:"sci", q:"מדוע התנגדה הכנסייה לתיאוריה של קופרניקוס?", a:"הכנסייה חששה שהתיאוריה <b>סותרת את כתבי הקודש</b>, ושמעמדו של האדם והאמונה בכנסייה ייחלשו."},
+  {t:"sci", q:"מה היו תרומותיו המרכזיות של גלילאו גליליי?", a:"• שיכלול <b>הטלסקופ</b><br>• ניסוח <b>חוק המטוטלת</b> ו<b>חוק התאוצה</b><br>• <b>תצפיות אסטרונומיות</b> שחיזקו את המודל ההליוצנטרי"},
+  {t:"sci", q:"מדוע הועמד גלילאו למשפט בפני האינקוויזיציה?", a:"משום ש<b>תמך בתורתו של קופרניקוס</b> והפר את החלטות הכנסייה שאסרו על כך."},
+  {t:"sci", q:"מה היו תגליותיו של אייזק ניוטון?", a:"• <b>חוק הכבידה</b><br>• <b>תורת האור</b> — הוכחה שהאור הלבן מורכב מתערובת צבעים"},
+  {t:"sci", q:"מה הייתה תרומת מהפכת הדפוס?", a:"• הפצת ידע מדעי <b>במהירות</b><br>• הדפסת ספרים <b>בשפות הלאומיות</b><br>• יצירת <b>קשר נוח בין מדענים</b> ממדינות שונות"},
+  {t:"enl", q:"מהי הנאורות ומהי הסיסמה המרכזית שלה?", a:"תנועה של הוגי דעות <b>במאה ה־18</b> שביקשה לבחון מחדש את הסדר הקיים בעזרת <b>השכל והתבונה</b>.<br>הסיסמה (קאנט): <b>״העז לדעת! אזור אומץ להשתמש בשכל שלך״</b>."},
+  {t:"enl", q:"מה הייתה ביקורת הוגי הנאורות על הדת והכנסייה?", a:"• הכנסייה מעודדת <b>אמונות טפלות</b> ואינה מעודדת חשיבה עצמית<br>• האל הוא <b>״אדריכל״</b> שברא את העולם אך אינו מתערב עוד במעשי בני האדם"},
+  {t:"enl", q:"מהו שלטון אבסולוטי?", a:"שלטון שבו <b>כל הסמכויות</b> — חקיקה, ביצוע ושפיטה — מרוכזות בידי <b>אדם אחד: המלך</b>."},
+  {t:"enl", q:"מהן שלוש הזכויות הטבעיות לפי ג׳ון לוק, ומה קורה אם השלטון פוגע בהן?", a:"<b>הזכות לחיים, הזכות לחירות והזכות לקניין (רכוש).</b><br>אם השלטון פוגע בהן — <b>מותר לאזרחים למרוד בו</b>."},
+  {t:"enl", q:"מהו עקרון הפרדת הרשויות של מונטסקייה?", a:"חלוקת סמכויות השלטון לשלוש רשויות — <b>מחוקקת, מבצעת ושופטת</b> — המאזנות ובולמות זו את זו כדי <b>למנוע עריצות</b>."},
+  {t:"enl", q:"מהם רעיונותיו המרכזיים של ז׳אן ז׳ק רוסו?", a:"• <b>האמנה החברתית</b> — הסכמה לוותר על הרצון הפרטי לטובת <b>״הרצון הכללי״</b><br>• <b>ריבונות העם</b> — מקור הסמכות של השלטון הוא העם"}
+];
+const TAGS = {sci:"🔬 המהפכה המדעית", enl:"💡 הנאורות והמדינה"};
+let filter="all", deck=[], i=0;
+const $=id=>document.getElementById(id);
+const card=$("card");
+
+function build(){ deck = CARDS.filter(c=>filter==="all"||c.t===filter); i=0; render(); }
+function render(){
+  const c=deck[i];
+  card.classList.remove("flipped");
+  $("flip").textContent="הצג תשובה";
+  setTimeout(()=>{ // swap content after flip-back starts
+    $("scene").className="scene "+c.t;
+    $("q").textContent=c.q; $("a").innerHTML="<div>"+c.a+"</div>";
+    $("tagF").textContent=$("tagB").textContent=TAGS[c.t];
+  }, card.dataset.ready? 150:0);
+  card.dataset.ready=1;
+  $("count").textContent=`כרטיס ${i+1} מתוך ${deck.length}`;
+  $("bar").style.width=((i+1)/deck.length*100)+"%";
+  $("prev").disabled=i===0; $("next").disabled=i===deck.length-1;
+}
+function flip(){ card.classList.toggle("flipped");
+  $("flip").textContent=card.classList.contains("flipped")?"הצג שאלה":"הצג תשובה"; }
+
+$("scene").onclick=flip; $("flip").onclick=flip;
+$("next").onclick=()=>{ if(i<deck.length-1){i++;render();} };
+$("prev").onclick=()=>{ if(i>0){i--;render();} };
+$("restart").onclick=()=>{ i=0; render(); };
+$("shuffle").onclick=()=>{ for(let k=deck.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[deck[k],deck[j]]=[deck[j],deck[k]];} i=0; render(); };
+document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".chip").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); filter=b.dataset.f; build();
+});
+document.addEventListener("keydown",e=>{
+  if(e.key===" "||e.key==="Enter"){e.preventDefault();flip();}
+  else if(e.key==="ArrowLeft") $("next").click();
+  else if(e.key==="ArrowRight") $("prev").click();
+});
+// swipe
+let sx=null;
+$("scene").addEventListener("touchstart",e=>sx=e.touches[0].clientX,{passive:true});
+$("scene").addEventListener("touchend",e=>{ if(sx===null)return; const dx=e.changedTouches[0].clientX-sx; sx=null;
+  if(Math.abs(dx)>50){ e.preventDefault(); dx<0? $("next").click() : $("prev").click(); } });
+build();
+</script>
+</body>
+</html>
